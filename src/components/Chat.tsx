@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { ChatMessageComponent } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { useChat } from '../hooks/useChat';
@@ -22,24 +22,12 @@ export function Chat({ userId, className = '' }: ChatProps) {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Welcome message
-  useEffect(() => {
-    if (messages.length === 0) {
-      // Add welcome message
-      const welcomeMessage = {
-        id: 'welcome',
-        content: 'Hello! I\'m your AI customer support assistant. How can I help you today?',
-        role: 'assistant' as const,
-        timestamp: new Date(),
-        metadata: {
-          confidence: 1,
-          category: 'general',
-          priority: 'low' as const,
-        }
-      };
-      // This would normally be added through the hook, but for demo purposes:
-      // addMessage(welcomeMessage);
-    }
-  }, [messages.length]);
+  // Welcome message effect - currently disabled
+  // useEffect(() => {
+  //   if (messages.length === 0) {
+  //     // Could add welcome message here if needed
+  //   }
+  // }, []);
 
   return (
     <div className={`flex flex-col h-full bg-white ${className}`}>

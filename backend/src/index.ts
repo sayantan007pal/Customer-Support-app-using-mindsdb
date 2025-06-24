@@ -26,6 +26,8 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/chat', createChatRouter());
 app.use('/api/kb', createKnowledgeBaseRouter());
+// Alias for more descriptive endpoint name
+app.use('/api/knowledge-base', createKnowledgeBaseRouter());
 
 // Health check endpoint
 app.get('/health', (req, res) => {

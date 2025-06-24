@@ -83,7 +83,9 @@ export function useChat(options: UseChatOptions = {}) {
         timestamp: new Date(),
         metadata: {
           confidence: response.confidence,
-          sources: response.sources.map(s => s.title),
+          sources: Array.isArray(response.sources) 
+            ? response.sources.map(s => s.title) 
+            : [],
           category: response.metadata.category,
           priority: response.metadata.priority as 'low' | 'medium' | 'high',
         },

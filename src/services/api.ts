@@ -23,7 +23,16 @@ async function handleResponse<T>(response: Response): Promise<T> {
       errorData.details
     );
   }
-  return response.json();
+  
+  const result = await response.json();
+  
+  // If the response has a data property (backend wraps responses), return the data
+  if (result.success && result.data) {
+    return result.data;
+  }
+  
+  // Otherwise return the response as-is
+  return result;
 }
 
 export const chatAPI = {

@@ -25,6 +25,8 @@ import { ChatService } from '../services/chat.js';
 import { KnowledgeBaseService } from '../services/knowledgeBase.js';
 import { createChatRouter } from '../routes/chat.js';
 import { createKnowledgeBaseRouter } from '../routes/knowledgeBase.js';
+import { createAgentsRouter } from '../routes/agents.js';
+import { AgentsService } from '../services/agents.js';
 
 const mockChatService = new ChatService() as jest.Mocked<ChatService>;
 const mockKnowledgeBaseService = new KnowledgeBaseService() as jest.Mocked<KnowledgeBaseService>;
@@ -354,6 +356,261 @@ describe('API Routes', () => {
         expect(response.status).toBe(200);
         expect(response.body.success).toBe(true);
         expect(response.body.data).toEqual(expectedStats);
+      });
+    });
+  });
+
+  describe('Agents Routes', () => {
+    let app: Express;
+    
+    beforeEach(() => {
+      app = express();
+      app.use(express.json());
+      app.use('/api/agents', createAgentsRouter());
+    });
+
+    describe('POST /api/agents', () => {
+      it('should create a new agent successfully', async () => {
+        const agentConfig = {
+          name: 'test_api_agent',
+          model: 'gpt-3.5-turbo',
+          provider: 'openai',
+          api_key: 'test-api-key',
+          knowledge_bases: ['support_kb'],
+          prompt_template: 'You are a helpful assistant.'
+        };
+
+        const response = await request(app)
+          .post('/api/agents')
+          .send(agentConfig)
+          .expect(201);
+
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.name).toBe('test_api_agent');
+        expect(response.body.data.model).toBe('gpt-3.5-turbo');
+        expect(response.body.data.status).toBe('active');
+        expect(response.body.message).toBe('Agent created successfully');
+      });
+
+      it('should return 400 for invalid agent configuration', async () => {
+        const invalidConfig = {
+          name: '', // Invalid: empty name
+          model: 'gpt-3.5-turbo',
+          provider: 'openai'
+          // Missing required api_key
+        };
+
+        const response = await request(app)
+          .post('/api/agents')
+          .send(invalidConfig)
+          .expect(400);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.error).toBeDefined();
+      });
+
+      it('should return 400 for invalid provider', async () => {
+        const invalidConfig = {
+          name: 'test_agent',
+          model: 'gpt-3.5-turbo',
+          provider: 'invalid_provider', // Invalid provider
+          api_key: 'test-key'
+        };
+
+        const response = await request(app)
+          .post('/api/agents')
+          .send(invalidConfig)
+          .expect(400);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.error).toContain('provider');
+      });
+    });
+
+    describe('POST /api/agents/query', () => {
+      it('should query an agent successfully', async () => {
+        // First create an agent
+        const agentConfig = {
+          name: 'query_api_agent',
+          model: 'gpt-3.5-turbo',
+          provider: 'openai',
+          api_key: 'test-api-key'
+        };
+
+        await request(app)
+          .post('/api/agents')
+          .send(agentConfig)
+          .expect(201);
+
+        // Then query it
+        const queryRequest = {
+          question: 'How do I reset my password?',
+          agent_name: 'query_api_agent'
+        };
+
+        const response = await request(app)
+          .post('/api/agents/query')
+          .send(queryRequest)
+          .expect(200);
+
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.answer).toBeDefined();
+        expect(response.body.data.agent_name).toBe('query_api_agent');
+        expect(response.body.data.confidence).toBeGreaterThan(0);
+      });
+
+      it('should return 400 for missing question', async () => {
+        const invalidQuery = {
+          agent_name: 'test_agent'
+          // Missing question
+        };
+
+        const response = await request(app)
+          .post('/api/agents/query')
+          .send(invalidQuery)
+          .expect(400);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.error).toContain('question');
+      });
+
+      it('should return 500 for non-existent agent', async () => {
+        const queryRequest = {
+          question: 'Test question',
+          agent_name: 'non_existent_agent'
+        };
+
+        const response = await request(app)
+          .post('/api/agents/query')
+          .send(queryRequest)
+          .expect(500);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.error).toContain('not found');
+      });
+    });
+
+    describe('GET /api/agents', () => {
+      it('should list all agents', async () => {
+        const response = await request(app)
+          .get('/api/agents')
+          .expect(200);
+
+        expect(response.body.success).toBe(true);
+        expect(response.body.data).toBeInstanceOf(Array);
+        expect(response.body.total).toBeDefined();
+        expect(response.body.total).toBeGreaterThanOrEqual(0);
+      });
+    });
+
+    describe('GET /api/agents/:name', () => {
+      it('should get a specific agent', async () => {
+        // First create an agent
+        const agentConfig = {
+          name: 'get_api_agent',
+          model: 'gpt-4',
+          provider: 'openai',
+          api_key: 'test-api-key',
+          prompt_template: 'Test prompt'
+        };
+
+        await request(app)
+          .post('/api/agents')
+          .send(agentConfig)
+          .expect(201);
+
+        // Then get it
+        const response = await request(app)
+          .get('/api/agents/get_api_agent')
+          .expect(200);
+
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.name).toBe('get_api_agent');
+        expect(response.body.data.model).toBe('gpt-4');
+      });
+
+      it('should return 404 for non-existent agent', async () => {
+        const response = await request(app)
+          .get('/api/agents/non_existent_agent')
+          .expect(404);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.error).toContain('not found');
+      });
+    });
+
+    describe('GET /api/agents/:name/status', () => {
+      it('should get agent status', async () => {
+        // First create an agent
+        const agentConfig = {
+          name: 'status_api_agent',
+          model: 'gpt-3.5-turbo',
+          provider: 'openai',
+          api_key: 'test-api-key'
+        };
+
+        await request(app)
+          .post('/api/agents')
+          .send(agentConfig)
+          .expect(201);
+
+        // Then get its status
+        const response = await request(app)
+          .get('/api/agents/status_api_agent/status')
+          .expect(200);
+
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.name).toBe('status_api_agent');
+        expect(response.body.data.status).toBe('active');
+        expect(response.body.data.model).toBe('gpt-3.5-turbo');
+      });
+
+      it('should return 404 for non-existent agent status', async () => {
+        const response = await request(app)
+          .get('/api/agents/non_existent_agent/status')
+          .expect(404);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.error).toContain('not found');
+      });
+    });
+
+    describe('DELETE /api/agents/:name', () => {
+      it('should delete an agent successfully', async () => {
+        // First create an agent
+        const agentConfig = {
+          name: 'delete_api_agent',
+          model: 'gpt-3.5-turbo',
+          provider: 'openai',
+          api_key: 'test-api-key'
+        };
+
+        await request(app)
+          .post('/api/agents')
+          .send(agentConfig)
+          .expect(201);
+
+        // Then delete it
+        const response = await request(app)
+          .delete('/api/agents/delete_api_agent')
+          .expect(200);
+
+        expect(response.body.success).toBe(true);
+        expect(response.body.message).toContain('deleted successfully');
+
+        // Verify it's deleted
+        await request(app)
+          .get('/api/agents/delete_api_agent')
+          .expect(404);
+      });
+
+      it('should return 404 for non-existent agent deletion', async () => {
+        const response = await request(app)
+          .delete('/api/agents/non_existent_agent')
+          .expect(404);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.error).toContain('not found');
       });
     });
   });
