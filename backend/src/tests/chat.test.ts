@@ -4,7 +4,8 @@ import type { ChatRequest, ChatResponse, KnowledgeBaseEntry, QueryClassification
 // Mock the services
 jest.mock('../services/knowledgeBase.js', () => ({
   KnowledgeBaseService: jest.fn().mockImplementation(() => ({
-    searchKnowledgeBase: jest.fn()
+    searchKnowledgeBase: jest.fn(),
+    searchKnowledgeBaseWithSDK: jest.fn()
   }))
 }));
 
@@ -74,7 +75,7 @@ describe('ChatService', () => {
         requires_escalation: false
       };
 
-      mockKnowledgeBaseService.searchKnowledgeBase.mockResolvedValue(mockKBResults);
+      mockKnowledgeBaseService.searchKnowledgeBaseWithSDK.mockResolvedValue(mockKBResults);
       mockAIService.classifyQuery.mockResolvedValue(mockClassification);
       mockAIService.generateResponse.mockResolvedValue(mockGeneration);
       mockAIService.shouldEscalate.mockResolvedValue(false);
@@ -92,7 +93,7 @@ describe('ChatService', () => {
       expect(response.conversation_id).toBe('conv_123');
       expect(response.metadata.category).toBe('technical');
 
-      expect(mockKnowledgeBaseService.searchKnowledgeBase).toHaveBeenCalledWith(
+      expect(mockKnowledgeBaseService.searchKnowledgeBaseWithSDK).toHaveBeenCalledWith(
         request.message,
         expect.objectContaining({ limit: 5, relevance_threshold: 0.7 })
       );
@@ -112,7 +113,7 @@ describe('ChatService', () => {
         user_id: 'user_456'
       };
 
-      mockKnowledgeBaseService.searchKnowledgeBase.mockResolvedValue([]);
+      mockKnowledgeBaseService.searchKnowledgeBaseWithSDK.mockResolvedValue([]);
       mockAIService.classifyQuery.mockResolvedValue({
         category: 'billing',
         intent: 'billing_inquiry',
@@ -147,7 +148,7 @@ describe('ChatService', () => {
         user_id: 'user_456'
       };
 
-      mockKnowledgeBaseService.searchKnowledgeBase.mockResolvedValue([]);
+      mockKnowledgeBaseService.searchKnowledgeBaseWithSDK.mockResolvedValue([]);
       mockAIService.classifyQuery.mockResolvedValue({
         category: 'general',
         intent: 'unclear',
@@ -180,7 +181,7 @@ describe('ChatService', () => {
         user_id: 'user_456'
       };
 
-      mockKnowledgeBaseService.searchKnowledgeBase.mockRejectedValue(new Error('Database error'));
+      mockKnowledgeBaseService.searchKnowledgeBaseWithSDK.mockRejectedValue(new Error('Database error'));
 
       // Act & Assert
       await expect(service.processMessage(request)).rejects.toThrow('Failed to process message');

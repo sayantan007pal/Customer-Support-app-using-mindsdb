@@ -57,6 +57,11 @@ export interface MindsDBConfig {
   user: string;
   password: string;
   database?: string;
+  // MindsDB Cloud or SDK specific settings
+  mindsdbCloudEmail?: string;
+  mindsdbCloudPassword?: string;
+  useCloud?: boolean;
+  httpUrl?: string;
 }
 
 export interface APIError {

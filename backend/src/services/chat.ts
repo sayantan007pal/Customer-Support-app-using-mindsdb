@@ -29,14 +29,14 @@ export class ChatService {
       // Step 1: Classify the query
       const classification = await this.aiService.classifyQuery(request.message);
       
-      // Step 2: Search knowledge base
+      // Step 2: Search knowledge base (using SDK if available)
       const searchFilters = {
         category: classification.category !== 'general' ? classification.category : undefined,
         limit: 5,
         relevance_threshold: 0.7
       };
       
-      const knowledgeBaseResults = await this.knowledgeBaseService.searchKnowledgeBase(
+      const knowledgeBaseResults = await this.knowledgeBaseService.searchKnowledgeBaseWithSDK(
         request.message,
         searchFilters
       );

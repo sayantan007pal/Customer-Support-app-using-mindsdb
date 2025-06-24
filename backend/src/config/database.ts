@@ -1,14 +1,25 @@
 import mysql from 'mysql2/promise';
+import MindsDB from 'mindsdb-js-sdk';
 import type { MindsDBConfig } from '../types/index.js';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 let connection: mysql.Connection | null = null;
+let mindsdbClient: any = null;
 
 export const config: MindsDBConfig = {
   host: process.env.MINDSDB_HOST || 'localhost',
   port: parseInt(process.env.MINDSDB_PORT || '47334'),
   user: process.env.MINDSDB_USER || 'mindsdb',
   password: process.env.MINDSDB_PASSWORD || '',
-  database: process.env.MINDSDB_DATABASE || 'mindsdb'
+  database: process.env.MINDSDB_DATABASE || 'mindsdb',
+  // MindsDB Cloud or local instance settings
+  mindsdbCloudEmail: process.env.MINDSDB_CLOUD_EMAIL,
+  mindsdbCloudPassword: process.env.MINDSDB_CLOUD_PASSWORD,
+  useCloud: process.env.MINDSDB_USE_CLOUD === 'true',
+  httpUrl: process.env.MINDSDB_HTTP_URL || 'http://localhost:47334'
 };
 
 const isMockMode = process.env.MOCK_MODE === 'true';
@@ -96,6 +107,47 @@ export async function getConnection(): Promise<mysql.Connection> {
   return connection;
 }
 
+// Initialize MindsDB SDK connection
+export async function getMindsDBClient(): Promise<any> {
+  if (isMockMode) {
+    console.log('Mock mode: MindsDB SDK not initialized');
+    return null;
+  }
+  
+  if (!mindsdbClient) {
+    try {
+      console.log('Attempting to connect to MindsDB...', typeof MindsDB, typeof MindsDB.connect);
+      
+      if (config.useCloud && config.mindsdbCloudEmail && config.mindsdbCloudPassword) {
+        // Connect to MindsDB Cloud
+        await MindsDB.connect({
+          user: config.mindsdbCloudEmail,
+          password: config.mindsdbCloudPassword
+        });
+        console.log('Connected to MindsDB Cloud successfully');
+      } else {
+        // Connect to self-hosted MindsDB instance
+        await MindsDB.connect({
+          host: config.httpUrl || `http://${config.host}:${config.port}`,
+          user: config.user,
+          password: config.password
+        });
+        console.log('Connected to MindsDB instance successfully');
+      }
+      
+      // Return MindsDB instance directly - it has query methods
+      mindsdbClient = MindsDB;
+      
+    } catch (error) {
+      console.error('Failed to connect to MindsDB via SDK:', error);
+      console.log('Falling back to MySQL connection...');
+      // Fallback to MySQL connection if SDK fails
+      return null;
+    }
+  }
+  return mindsdbClient;
+}
+
 export async function executeQuery(sql: string): Promise<any> {
   if (isMockMode) {
     console.log('Mock mode: Simulating query execution:', sql);
@@ -151,6 +203,12 @@ export async function closeConnection(): Promise<void> {
   if (connection) {
     await connection.end();
     connection = null;
-    console.log('Database connection closed');
+    console.log('MySQL database connection closed');
+  }
+  
+  if (mindsdbClient) {
+    // MindsDB SDK doesn't require explicit closing
+    mindsdbClient = null;
+    console.log('MindsDB SDK connection cleared');
   }
 }
